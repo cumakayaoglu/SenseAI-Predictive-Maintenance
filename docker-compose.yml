@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "8000:8000"
+    networks:
+      - senseai_network
+    depends_on:
+      - influxdb
+
+  simulator:
+    build:
+      context: .
+      dockerfile: sensor_simulator/Dockerfile
+    environment:
+      - API_URL=http://api:8000/ingest
+    depends_on:
+      - api
+    networks:
+      - senseai_network
+
+  influxdb:
+    image: influxdb:2.7
+    ports:
+      - "8086:8086"
+    environment:
+      # Veritabanı ilk kurulum (Setup) ayarları
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=adminpassword
+      - DOCKER_INFLUXDB_INIT_ORG=senseai_org
+      - DOCKER_INFLUXDB_INIT_BUCKET=senseai_bucket
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=senseai-super-secret-token
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    networks:
+      - senseai_network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      # Grafana giriş şifresi (Kullanıcı adı: admin)
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - influxdb
+    networks:
+      - senseai_network
+
+networks:
+  senseai_network:
+    driver: bridge
+
+volumes:
+  influxdb-data:
+  grafana-data:
